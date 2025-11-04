@@ -2,3 +2,19 @@
 [2025-11-04 21:56:09] Testing logging system...
 [2025-11-04 21:56:09] ERROR: Testing error logging
 [2025-11-04 21:56:09] === Test Complete ===
+[2025-11-05 00:36:37] Running pre-flight checks...
+[2025-11-05 00:36:39] Pre-flight checks completed successfully.
+[2025-11-05 00:36:39] ===============================================
+[2025-11-05 00:36:39] Backup script started.
+[2025-11-05 00:36:39] ===============================================
+[2025-11-05 00:37:02] Backing up to an existing bucket: musorowenyoka
+[2025-11-05 00:37:02] Creating 10 test files in /home/jabu/Documents/backups
+[2025-11-05 00:37:02] Created 10 test files in /home/jabu/Documents/backups
+[2025-11-05 00:37:02] Created compressed archive: backup-2025-11-05_00-36-37.tar.gz
+[2025-11-05 00:37:05] Uploaded backup-2025-11-05_00-36-37.tar.gz to s3://musorowenyoka/backups/
+[2025-11-05 00:37:05] Removed local backup file: backup-2025-11-05_00-36-37.tar.gz
+[2025-11-05 00:37:07] Backup file count (6) exceeds limit. Starting rotation.
+[2025-11-05 00:37:11] Deleted oldest backup file: backup-2025-10-27_16-16-14.tar.gz
+[2025-11-05 00:37:11] ======================================================
+[2025-11-05 00:37:11] Backup script completed.
+[2025-11-05 00:37:11] ======================================================
