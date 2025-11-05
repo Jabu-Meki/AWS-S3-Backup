@@ -6,7 +6,7 @@
 
 ## 📋 Overview
 
-This is a production-ready bash script that automates the backup process for local files to AWS S3. It features intelligent backup rotation, comprehensive logging, and robust error handling - built to run reliably in production environments.
+This is a production ready bash script that automates the backup process for local files to AWS S3. It features intelligent backup rotation, comprehensive logging, and robust error handling  built to run reliably in production environments.
 
 **Key Problem It Solves:** Manual backups are unreliable and time-consuming. This script ensures your data is consistently backed up to S3 with automatic cleanup of old backups to manage storage costs.
 
@@ -141,7 +141,7 @@ tail -f backup.log
 
 ## 🎓 Learning Journey
 
-This project evolved from a simple backup script to a production-ready automation tool. Each phase taught valuable DevOps skills:
+This project evolved from a simple backup script to a production ready automation tool. Each phase taught valuable DevOps skills:
 - Bash scripting best practices
 - AWS S3 operations and optimization
 - Error handling and logging patterns
