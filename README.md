@@ -157,7 +157,7 @@ MIT License - feel free to use and modify for your needs
 
 **Jabu Meki**
 - GitHub: [@Jabu-Meki](https://github.com/Jabu-Meki)
-- LinkedIn: [Your LinkedIn Profile]
+- LinkedIn: www.linkedin.com/in/jabulani-meki-cloudguy
 
 ## 🙏 Acknowledgments
 
