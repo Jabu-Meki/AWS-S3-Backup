@@ -1,1 +1,2 @@
 [2025-11-04 21:56:09] ERROR: Testing error logging
+[2025-11-05 02:00:09] ERROR: Failed to upload backup-2025-11-05_02-00-01.tar.gz to s3:///backups/. Exiting.
