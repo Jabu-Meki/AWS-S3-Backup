@@ -28,3 +28,13 @@
 [2025-11-05 02:00:07] Created 10 test files in /home/jabu/Documents/backups
 [2025-11-05 02:00:07] Created compressed archive: backup-2025-11-05_02-00-01.tar.gz
 [2025-11-05 02:00:09] ERROR: Failed to upload backup-2025-11-05_02-00-01.tar.gz to s3:///backups/. Exiting.
+[2025-11-06 02:00:01] Running pre-flight checks...
+[2025-11-06 02:00:04] Pre-flight checks completed successfully.
+[2025-11-06 02:00:04] ===============================================
+[2025-11-06 02:00:04] Backup script started.
+[2025-11-06 02:00:04] ===============================================
+[2025-11-06 02:00:06] Backing up to an existing bucket: 
+[2025-11-06 02:00:06] Creating 10 test files in /home/jabu/Documents/backups
+[2025-11-06 02:00:06] Created 10 test files in /home/jabu/Documents/backups
+[2025-11-06 02:00:06] Created compressed archive: backup-2025-11-06_02-00-01.tar.gz
+[2025-11-06 02:00:07] ERROR: Failed to upload backup-2025-11-06_02-00-01.tar.gz to s3:///backups/. Exiting.
