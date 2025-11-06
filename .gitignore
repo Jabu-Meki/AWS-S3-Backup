@@ -1,0 +1,22 @@
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/*.tfvars
+terraform/.terraform.tfstate.lock.info
+
+# Logs
+*.log
+
+# Backup files
+backups/
+*.tar.gz
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
