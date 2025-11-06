@@ -25,3 +25,10 @@ terraform.rc
 
 # Do NOT ignore .tf scripts
 !*.tf
+
+# Terraform - apply to all subdirectories
+**/.terraform/*
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfvars
