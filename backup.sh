@@ -1,12 +1,12 @@
 #!/bin/bash
 
-BACKUP_DIR="/home/jabu/Documents/backups"
+BACKUP_DIR="/data/source_files"
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
 BACKUP_FILE="backup-${TIMESTAMP}.tar.gz"
 NUM_FILES=10
 
-LOG_FILE="/home/jabu/Documents/AWS-Projects/AWS-S3-Backup/backup.log"
-ERROR_LOG="/home/jabu/Documents/AWS-Projects/AWS-S3-Backup/backup-errors.log"
+LOG_FILE="/app/logs/backup.log"
+ERROR_LOG="/app/logs/backup-errors.log"
 
 log_message() {
    local TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
@@ -39,6 +39,7 @@ if [ ! -d "$BACKUP_DIR" ]; then
     # mkdir -p "$BACKUP_DIR" || { log_error "Failed to create backup directory ${BACKUP_DIR}. Exiting."; exit 1;}
     
     mkdir -p "$BACKUP_DIR"
+    mkdir -p /app/logs
     if [ $? -ne 0 ]; then
         log_error "Failed to create backup directory ${BACKUP_DIR}. Exiting."
         exit 1
@@ -66,33 +67,16 @@ log_message "==============================================="
 
 
 
-echo "Create new bucket? (Y/N)"
-read input_option
-
-if [ "$input_option" == "Y" ]; then
-    echo "Enter new bucket name: "
-    read bucket_name
-
-    # Creating a bucket
-    echo "Creating a new bucket..."
-    aws s3 mb s3://$bucket_name
-    if [ $? -ne 0 ]; then
-        log_error "Failed to create bucket ${bucket_name}. Exiting."
-        exit 1
-    fi
-
-    S3_BUCKET="s3://${bucket_name}"
-
-    log_message "Created new bucket: ${bucket_name}"
-
-else
-    echo "Enter existing bucket name from the list: "
-    aws s3 ls
-    read bucket_name
-    S3_BUCKET="s3://${bucket_name}"
-
-    log_message "Backing up to an existing bucket: ${bucket_name}"
+# Check if a bucket name is provided as the first argument ($1)
+if [ -z "$1" ]; then
+    log_error "No bucket name provided. This script must be run with a bucket name."
+    log_error "Usage: ./backup.sh <your-s3-bucket-name>"
+    exit 1
 fi
+
+S3_BUCKET="s3://$1"
+log_message "Backing up to bucket: ${S3_BUCKET}"
+    
 
 echo "Creating test files in back up directory..."
 

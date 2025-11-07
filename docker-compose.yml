@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  backup:
+    build: 
+      context: .
+      dockerfile: ./docker/Dockerfile
+    image: aws-s3-backup:latest
+    container_name: aws-backup-container
+    volumes:
+      # Mount AWS credentials (read-only)
+      - ~/.aws:/root/.aws:ro
+      # Mount backup directory
+      - ./backups:/data/source_files
+      # Mount logs directory
+      - ./logs:/app/logs
+      # Pass bucket name as argument
+    command: ["terraform-backup-test-mjay-sys"]
+
