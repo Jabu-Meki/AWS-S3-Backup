@@ -21,7 +21,7 @@ jobs:
         with:
           scandir: './'
       - name: Setup Terraform
-        uses: hashcorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@v2
       - name: Validate Terraform Configuration
         run: terraform -chdir=./terraform init -backend=false && terraform -chdir=./terraform validate
 
