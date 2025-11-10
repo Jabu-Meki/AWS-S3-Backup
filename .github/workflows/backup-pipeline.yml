@@ -58,45 +58,47 @@ jobs:
     run-backup:
         name: Run S3 Backup
         needs: build
-
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-
         runs-on: ubuntu-latest
+    
         steps:
-            - name: Checkout Repository Code
-              uses: actions/checkout@v3
-
             - name: Configure AWS Credentials
-              uses: aws-actions/configure-aws-credentials@v2
+              uses: aws-actions/configure-aws-credentials@v4
               with: 
                 aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
                 aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
                 aws-region: us-east-1
 
-            - name: Run Backup Script via Docker
+      # We create this directory on the runner so we have a place to mount from.
+            - name: Create Logs Directory on Runner
+              run: mkdir -p ./logs
 
-             
+      # This step runs our container. It is the CI/CD equivalent of our successful local test.
+            - name: Run Backup Script via Docker
               run: |
-                echo "--- DEBUG INFO FROM GITHUB RUNNER ---"
-                echo "GitHub Actions sees SNS_TOPIC_ARN as: '${{ secrets.SNS_TOPIC_ARN }}'"
-                echo "---------------------------------------"
                 docker run --rm \
-                  -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-                  -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-                  -e AWS_SESSION_TOKEN=${{ secrets.AWS_SESSION_TOKEN }} \
-                  -e AWS_REGION=us-east-1 \
+            
+                  -e AWS_ACCESS_KEY_ID \
+                  -e AWS_SECRET_ACCESS_KEY \
+                  -e AWS_SESSION_TOKEN \
+                  -e AWS_REGION \
+                  -e AWS_DEFAULT_REGION \
                   -e SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }} \
+          
+                  --mount type=bind,source="$(pwd)/logs",target=/app/logs \
+            
                   ${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:latest \
+            
                   terraform-backup-test-mjay-sys
 
-
-            
-
+      # This step will now find the logs created by the container and save them.
             - name: Upload Logs as a Build Artifact
-              uses: actions/upload-artifact@v4  # Update to the latest version
+              if: always() # Always run this, even if the backup fails, to capture the logs.
+              uses: actions/upload-artifact@v4
               with:
                 name: backup-logs-${{ github.run_id }}
                 path: ./logs/
+
 
     notify:
             name: Notify on Completion
