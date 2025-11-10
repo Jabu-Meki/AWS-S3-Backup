@@ -70,7 +70,6 @@ jobs:
       # This step CREATES the AWS environment variables in the runner's shell.
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
-        id: creds # We give it an ID to reference its output.
         with: 
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -84,16 +83,12 @@ jobs:
       - name: Run Backup Script via Docker
         run: |
           docker run --rm \
-            # --- THE DEFINITIVE FIX ---
-            # We are now explicitly setting every required AWS variable for the container,
-            # exactly like you did with 'export' on your local machine.
-            -e AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
-            -e AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
-            -e AWS_SESSION_TOKEN=${{ env.AWS_SESSION_TOKEN }} \
-            -e AWS_REGION=${{ steps.creds.outputs.aws-region }} \
-            -e AWS_DEFAULT_REGION=${{ steps.creds.outputs.aws-region }} \
+            -e AWS_ACCESS_KEY_ID \
+            -e AWS_SECRET_ACCESS_KEY \
+            -e AWS_SESSION_TOKEN \
+            -e AWS_REGION \
+            -e AWS_DEFAULT_REGION \
             -e SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }} \
-            # ---------------------------------
             --mount type=bind,source="$(pwd)/logs",target=/app/logs \
             jabulani053/aws-s3-backup:latest \
             terraform-backup-test-mjay-sys
@@ -104,4 +99,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backup-logs-${{ github.run_id }}
-          path: ./logs/*
+          path: ./logs/
