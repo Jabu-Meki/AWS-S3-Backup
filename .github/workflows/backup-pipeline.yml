@@ -82,7 +82,7 @@ jobs:
                   -e AWS_REGION=us-east-1 \
                   -e SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }} \
                   ${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:latest \
-                  terraform-backup-test-mjay-sysH
+                  terraform-backup-test-mjay-sys
 
 
             
