@@ -9,7 +9,8 @@ LOG_FILE="/app/logs/backup.log"
 ERROR_LOG="/app/logs/backup-errors.log"
 
 log_message() {
-   local TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+   local TIMESTAMP
+   TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
    local message="$1"
    local log_entry="[${TIMESTAMP}] ${message}"
    
@@ -19,13 +20,14 @@ log_message() {
 }
 
 log_error() {
-    local TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+    local TIMESTAMP
+    TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
     local message="$1"
     local log_entry="[${TIMESTAMP}] ERROR: ${message}"
     
     echo "$log_entry"    # Print to console
-    echo "$log_entry" >> $ERROR_LOG  # Append to error log file
-    echo "$log_entry" >> $LOG_FILE  # Append to log file
+    echo "$log_entry" >> "$ERROR_LOG"  # Append to error log file
+    echo "$log_entry" >> "$LOG_FILE"  # Append to log file
 }
 
 log_message "Running pre-flight checks..."
@@ -35,15 +37,12 @@ log_message "Running pre-flight checks..."
 if [ ! -d "$BACKUP_DIR" ]; then
     log_error "Backup directory ${BACKUP_DIR} does not exist. Creating it..."
 
-    # Alternative:
-    # mkdir -p "$BACKUP_DIR" || { log_error "Failed to create backup directory ${BACKUP_DIR}. Exiting."; exit 1;}
-    
-    mkdir -p "$BACKUP_DIR"
-    mkdir -p /app/logs
-    if [ $? -ne 0 ]; then
-        log_error "Failed to create backup directory ${BACKUP_DIR}. Exiting."
-        exit 1
-    fi
+    mkdir -p "/app/logs"
+    mkdir -p "$BACKUP_DIR" || { 
+        log_error "Failed to create backup directory ${BACKUP_DIR}. Exiting."; 
+        exit 1; 
+    }
+
     log_message "Created backup directory: ${BACKUP_DIR}"
 fi
 # Checking if AWS CLI is installed
@@ -90,11 +89,11 @@ for ((i=1; i<=$NUM_FILES; i++)); do
 done
 log_message "Created $NUM_FILES test files in ${BACKUP_DIR}"
 
-tar -czf $BACKUP_FILE $BACKUP_DIR
+tar -czf "$BACKUP_FILE" "$BACKUP_DIR"
 log_message "Created compressed archive: ${BACKUP_FILE}"
 
-aws s3 cp $BACKUP_FILE $S3_BUCKET/backups/
-if [ $? -ne 0 ]; then
+aws s3 cp "$BACKUP_FILE" "$S3_BUCKET/backups/"
+if ! aws s3 cp "${BACKUP_FILE}" "s3://${S3_BUCKET}/backups/"; then
     log_error "Failed to upload ${BACKUP_FILE} to ${S3_BUCKET}/backups/. Exiting."
     exit 1
 fi
@@ -102,21 +101,23 @@ fi
 log_message "Uploaded ${BACKUP_FILE} to ${S3_BUCKET}/backups/"
 
 
-rm $BACKUP_FILE
+rm "$BACKUP_FILE"
 log_message "Removed local backup file: ${BACKUP_FILE}"
 
 
-BACKUP_FILE_COUNT=$(aws s3 ls $S3_BUCKET/backups/ 2>/dev/null | wc -l)
+BACKUP_FILE_COUNT=$(aws s3 ls "$S3_BUCKET/backups/" 2>/dev/null | wc -l)
 
 if [ $BACKUP_FILE_COUNT -gt 5 ]; then
     echo "Backup file count exceeds limit. Deleting oldest backup file..."
     log_message "Backup file count (${BACKUP_FILE_COUNT}) exceeds limit. Starting rotation."
-    OLDEST_FILE=$(aws s3 ls $S3_BUCKET/backups/ 2>/dev/null | head -n 1 | awk '{print $4}')
-    aws s3 rm $S3_BUCKET/backups/$OLDEST_FILE
-    if [ $? -ne 0 ]; then
+    OLDEST_FILE=$(aws s3 ls "$S3_BUCKET/backups/" 2>/dev/null | head -n 1 | awk '{print $4}')
+    aws s3 rm "$S3_BUCKET/backups/$OLDEST_FILE"
+
+    if ! aws s3 rm "s3://${S3_BUCKET}/backups/${OLDEST_FILE}"; then
         log_error "Failed to delete oldest backup file ${OLDEST_FILE} from ${S3_BUCKET}/backups/. Exiting."
         exit 1
     fi
+
 
     log_message "Deleted oldest backup file: ${OLDEST_FILE}"
     
