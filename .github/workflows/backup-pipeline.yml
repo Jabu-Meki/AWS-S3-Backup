@@ -1,81 +1,107 @@
+# This is the name of your entire CI/CD workflow, which you'll see in the GitHub "Actions" tab.
 name: Backup CI/CD Pipeline
 
+# This section defines WHEN the workflow will automatically run.
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
   schedule:
-    - cron: '0 2 * * *' # Daily at 2 AM UTC
-  workflow_dispatch: {} # Manual trigger
+    - cron: '0 2 * * *' # Runs every day at 2 AM UTC
+  workflow_dispatch: {} # Allows you to manually trigger the workflow from the GitHub Actions tab.
 
+# A workflow is made up of one or more jobs.
 jobs:
+  # --- JOB 1: VALIDATE ---
+  # This job acts as a quality gate to check for errors in your code.
   validate:
     name: Lint and Validate Code
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository Code
         uses: actions/checkout@v4
+
       - name: Lint Bash Script with ShellCheck
         uses: ludeeus/action-shellcheck@master
         with:
           scandir: './'
+
       - name: Setup Terraform
-        # Corrected typo: hashicorp
-        uses: hashicorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@v3
+
       - name: Validate Terraform Configuration
         run: terraform -chdir=./terraform init -backend=false && terraform -chdir=./terraform validate
 
+  # --- JOB 2: BUILD ---
+  # This job builds your Docker image and pushes it to Docker Hub.
   build:
     name: Build & Push Docker Image
-    needs: validate
+    needs: validate # This job will ONLY run if the 'validate' job completes successfully.
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository Code
         uses: actions/checkout@v4
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }} # This should be 'jabulani053'
+          username: ${{ secrets.DOCKERHUB_USERNAME }} # Should be 'jabulani053'
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./docker/Dockerfile
           push: true
-          # --- THE CRITICAL FIX ---
           # The image name MUST be prefixed with your actual Docker Hub username.
           tags: jabulani053/aws-s3-backup:latest,jabulani053/aws-s3-backup:${{ github.sha }}
-          # ------------------------
 
+  # --- JOB 3: RUN BACKUP ---
+  # This job runs the actual backup. It only runs for scheduled or manual triggers.
   run-backup:
     name: Run S3 Backup
     needs: build
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    
     steps:
+      # This step CREATES the AWS environment variables in the runner's shell.
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
+        id: creds # We give it an ID to reference its output.
         with: 
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
+
+      # We create this directory on the runner so we have a place to mount from.
       - name: Create Logs Directory on Runner
         run: mkdir -p ./logs
-      - name: Run Backup Script via Docker (Final Test)
+
+      # This step CONSUMES the variables created above and runs the container.
+      - name: Run Backup Script via Docker
         run: |
           docker run --rm \
-            -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-            -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-            -e AWS_REGION=us-east-1 \
-            -e AWS_DEFAULT_REGION=us-east-1 \
+            # --- THE DEFINITIVE FIX ---
+            # We are now explicitly setting every required AWS variable for the container,
+            # exactly like you did with 'export' on your local machine.
+            -e AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
+            -e AWS_SESSION_TOKEN=${{ env.AWS_SESSION_TOKEN }} \
+            -e AWS_REGION=${{ steps.creds.outputs.aws-region }} \
+            -e AWS_DEFAULT_REGION=${{ steps.creds.outputs.aws-region }} \
+            -e SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }} \
+            # ---------------------------------
             --mount type=bind,source="$(pwd)/logs",target=/app/logs \
             jabulani053/aws-s3-backup:latest \
             terraform-backup-test-mjay-sys
+
+      # This step will now find the logs created by the container and save them as an artifact.
       - name: Upload Logs as a Build Artifact
-        if: always()
+        if: always() # This ensures logs are uploaded even if the backup script fails.
         uses: actions/upload-artifact@v4
         with:
           name: backup-logs-${{ github.run_id }}
-          path: ./logs/
+          path: ./logs/*
