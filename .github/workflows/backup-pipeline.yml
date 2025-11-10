@@ -21,9 +21,7 @@ jobs:
         with:
           scandir: './'
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: '1.5.6'
+        uses: hashcorp/setup-terraform@v3
       - name: Validate Terraform Configuration
         run: terraform -chdir=./terraform init -backend=false && terraform -chdir=./terraform validate
 
@@ -31,8 +29,6 @@ jobs:
     name: Build & Push Docker Image
     needs: validate
     runs-on: ubuntu-latest
-    outputs:
-      image_name: ${{ steps.set_image_name.outputs.IMAGE_NAME }}
     steps:
       - name: Checkout Repository Code
         uses: actions/checkout@v4
@@ -42,15 +38,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build and Push Docker Image
+        # This step builds and pushes the image that we will use in the next job.
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./docker/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:latest,${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:${{ github.sha }}
-      - name: Set Image Name Output
-        id: set_image_name
-        run: echo "IMAGE_NAME=${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:latest" >> $GITHUB_OUTPUT
+          tags: jabu-meki/aws-s3-backup:latest # Using your hardcoded username here for consistency
 
   run-backup:
     name: Run S3 Backup
@@ -76,7 +70,8 @@ jobs:
             -e AWS_DEFAULT_REGION \
             -e SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }} \
             --mount type=bind,source="$(pwd)/logs",target=/app/logs \
-            ${{ needs.build.outputs.image_name }} \
+           
+            jabu-meki/aws-s3-backup:latest \
             terraform-backup-test-mjay-sys
       - name: Upload Logs as a Build Artifact
         if: always()
