@@ -104,7 +104,7 @@ log_message "Removed local backup file: ${BACKUP_FILE}"
 
 BACKUP_FILE_COUNT=$(aws s3 ls "$S3_BUCKET/backups/" 2>/dev/null | wc -l)
 
-if [ $BACKUP_FILE_COUNT -gt 5 ]; then
+if [ "$BACKUP_FILE_COUNT" -gt 5 ]; then
     echo "Backup file count exceeds limit. Deleting oldest backup file..."
     log_message "Backup file count (${BACKUP_FILE_COUNT}) exceeds limit. Starting rotation."
     OLDEST_FILE=$(aws s3 ls "$S3_BUCKET/backups/" 2>/dev/null | head -n 1 | awk '{print $4}')
