@@ -1,0 +1,121 @@
+name: Backup CI/CD Pipeline
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+    schedule:
+        - cron: '0 2 * * *' # Daily at 2 AM UTC
+    workflow_dispatch: # Manual trigger
+
+
+jobs:
+    validate:
+        name: Lint and Validate Code
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout Repository Code
+              uses: actions/checkout@v3
+
+            - name: Lint Bash Script with ShellCheck
+              uses: ludeeus/action-shellcheck@master
+              with:
+                scandir: './'
+
+            - name: Setup Terraform
+              uses: hashicorp/setup-terraform@v2
+              with:
+                terraform_version: '1.5.6'
+
+            - name: Validate Terraform Confuguration
+              run: terraform -chdir=./terraform init && terraform -chdir=./terraform validate
+
+    build:
+        name: Build & Push Docker Image
+
+        needs: validate
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository Code
+              uses: actions/checkout@v3
+
+            - name: Log to Docker Hub
+              uses: docker/login-action@v2
+              with:
+                username: ${{ secrets.DOCKERHUB_USERNAME }}
+                password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Build and Push Docker Image
+              uses: docker/build-push-action@v4
+              with:
+                context: .
+                file: ./docker/Dockerfile
+                push: true
+                tags: ${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:latest,${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:${{ github.sha }}
+
+    run-backup:
+        name: Run S3 Backup
+        needs: build
+
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository Code
+              uses: actions/checkout@v3
+
+            - name: Configure AWS Credentials
+              uses: aws-actions/configure-aws-credentials@v2
+              with: 
+                aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                aws-region: us-east-1
+
+            - name: Login to Docker Hub
+              uses: docker/login-action@v2
+              with: 
+                username: ${{ secrets.DOCKERHUB_USERNAME }}
+                password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Pull the specific Docker Image version
+              run: docker pull ${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:${{ github.sha }}
+
+            - name: Update docker-compose.yml to use specific image version
+              run: |
+                sed -i 's|image: aws-s3-backup:latest|image: ${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:${{ github.sha }}|g' docker-compose.yml
+
+            - name: Run Backup using Docker Compose
+              run: docker-compose up
+
+            - name: Upload Logs as a Build Artifact
+              uses: actions/upload-artifact@v3
+              with:
+                name: backup-logs-${{ github.run_id }}
+                path: ./logs/
+
+    notify:
+            name: Notify on Completion
+            needs: [validate, build, run-backup]
+            if: always()
+            runs-on: ubuntu-latest
+            steps:
+                - name: Send Slack Notification on Success
+                  if: success()
+                  uses: rtCamp/action-slack-notify@v2
+                  env: 
+                    SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+                    SLACK_TITLE: "Backup Pipeline Succeeded :white_check_mark:"
+                    SLACK_MESSAGE: "The AWS S3 Backup pipeline has completed successfully."
+                    SLACK_COLOR: "good"
+                
+                - name: Send Slack Notification on Failure
+                  if: failure()
+                  uses: rtCamp/action-slack-notify@v2
+                  env:
+                    SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+                    SLACK_TITLE: "Backup Pipeline Failed :x:"
+                    SLACK_MESSAGE: "The AWS S3 Backup pipeline has failed. Please check the logs for details."
+                    SLACK_COLOR: "danger"
+                
