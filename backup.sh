@@ -9,25 +9,24 @@ LOG_FILE="/app/logs/backup.log"
 ERROR_LOG="/app/logs/backup-errors.log"
 
 log_message() {
-   local TIMESTAMP
+   local TIMESTAMP message log_entry  # Declare all locals at the top
    TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
-   local message="$1"
-   local log_entry="[${TIMESTAMP}] ${message}"
+   message="$1"
+   log_entry="[${TIMESTAMP}] ${message}"
    
-   echo "$log_entry"    # Print to console
-   echo "$log_entry" >> "$LOG_FILE"  # Append to log file
-
+   echo "$log_entry"
+   echo "$log_entry" >> "$LOG_FILE"
 }
 
 log_error() {
-    local TIMESTAMP
+    local TIMESTAMP message log_entry # Declare all locals at the top
     TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
-    local message="$1"
-    local log_entry="[${TIMESTAMP}] ERROR: ${message}"
+    message="$1"
+    log_entry="[${TIMESTAMP}] ERROR: ${message}"
     
-    echo "$log_entry"    # Print to console
-    echo "$log_entry" >> "$ERROR_LOG"  # Append to error log file
-    echo "$log_entry" >> "$LOG_FILE"  # Append to log file
+    echo "$log_entry"
+    echo "$log_entry" >> "$ERROR_LOG"
+    echo "$log_entry" >> "$LOG_FILE"
 }
 
 log_message "Running pre-flight checks..."
@@ -81,7 +80,7 @@ echo "Creating test files in back up directory..."
 
 log_message "Creating $NUM_FILES test files in $BACKUP_DIR"
 
-for ((i=1; i<=$NUM_FILES; i++)); do
+for ((i=1; i<=NUM_FILES; i++)); do
     #Create file name
     filename="$BACKUP_DIR/testfile_$i.txt"
     echo "This is test file number $i" > $filename
@@ -92,12 +91,10 @@ log_message "Created $NUM_FILES test files in ${BACKUP_DIR}"
 tar -czf "$BACKUP_FILE" "$BACKUP_DIR"
 log_message "Created compressed archive: ${BACKUP_FILE}"
 
-aws s3 cp "$BACKUP_FILE" "$S3_BUCKET/backups/"
-if ! aws s3 cp "${BACKUP_FILE}" "s3://${S3_BUCKET}/backups/"; then
+if ! aws s3 cp "$BACKUP_FILE" "$S3_BUCKET/backups/"; then
     log_error "Failed to upload ${BACKUP_FILE} to ${S3_BUCKET}/backups/. Exiting."
     exit 1
 fi
-
 log_message "Uploaded ${BACKUP_FILE} to ${S3_BUCKET}/backups/"
 
 
@@ -111,7 +108,7 @@ if [ $BACKUP_FILE_COUNT -gt 5 ]; then
     echo "Backup file count exceeds limit. Deleting oldest backup file..."
     log_message "Backup file count (${BACKUP_FILE_COUNT}) exceeds limit. Starting rotation."
     OLDEST_FILE=$(aws s3 ls "$S3_BUCKET/backups/" 2>/dev/null | head -n 1 | awk '{print $4}')
-    aws s3 rm "$S3_BUCKET/backups/$OLDEST_FILE"
+
 
     if ! aws s3 rm "s3://${S3_BUCKET}/backups/${OLDEST_FILE}"; then
         log_error "Failed to delete oldest backup file ${OLDEST_FILE} from ${S3_BUCKET}/backups/. Exiting."
