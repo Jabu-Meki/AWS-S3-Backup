@@ -7,9 +7,12 @@ services:
       dockerfile: ./docker/Dockerfile
     image: aws-s3-backup:latest
     container_name: aws-backup-container
+
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_REGION
     volumes:
-      # Mount AWS credentials (read-only)
-      - ~/.aws:/root/.aws:ro
       # Mount backup directory
       - ./backups:/data/source_files
       # Mount logs directory
