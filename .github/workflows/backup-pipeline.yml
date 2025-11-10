@@ -86,8 +86,14 @@ jobs:
               run: |
                 sed -i 's|image: aws-s3-backup:latest|image: ${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:${{ github.sha }}|g' docker-compose.yml
 
+            #Install Docker Compose
+            - name: Install Docker Compose
+              run: sudo apt-get update && sudo apt-get install -y docker-compose
+
             - name: Run Backup using Docker Compose
               run: docker-compose up
+
+            
 
             - name: Upload Logs as a Build Artifact
               uses: actions/upload-artifact@v4  # Update to the latest version
