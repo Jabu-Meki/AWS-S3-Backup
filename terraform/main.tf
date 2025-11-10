@@ -59,3 +59,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "backup_lifecycle" {
     }
 
 }
+
+output "sns_topic_arn" {
+    description = "ARN of the SNS topic for backup notifications"
+    value = aws_sns_topic.backup_notifications.arn
+}

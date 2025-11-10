@@ -33,3 +33,9 @@ variable "expiration_days" {
     type = number
     default = 365
 }
+
+variable "notification_email" {
+    description = "The email address to receive backup notifications"
+    type = string
+    default = "jabu24meki@gmail.com"
+}
