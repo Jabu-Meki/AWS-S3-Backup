@@ -1,126 +1,122 @@
 name: Backup CI/CD Pipeline
 
 on:
-    push:
-        branches: [main]
-    pull_request:
-        branches: [main]
-    schedule:
-        - cron: '0 2 * * *' # Daily at 2 AM UTC
-    workflow_dispatch: # Manual trigger
-
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * *' # Daily at 2 AM UTC
+  workflow_dispatch: {} # Manual trigger
 
 jobs:
-    validate:
-        name: Lint and Validate Code
-        runs-on: ubuntu-latest
+  validate:
+    name: Lint and Validate Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository Code
+        uses: actions/checkout@v4
 
-        steps:
-            - name: Checkout Repository Code
-              uses: actions/checkout@v4
+      - name: Lint Bash Script with ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './'
 
-            - name: Lint Bash Script with ShellCheck
-              uses: ludeeus/action-shellcheck@master
-              with:
-                scandir: './'
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.5.6'
 
-            - name: Setup Terraform
-              uses: hashicorp/setup-terraform@v3
-              with:
-                terraform_version: '1.5.6'
+      - name: Validate Terraform Configuration
+        run: terraform -chdir=./terraform init -backend=false && terraform -chdir=./terraform validate
 
-            - name: Validate Terraform Configuration
-              run: terraform -chdir=./terraform init -backend=false && terraform -chdir=./terraform validate
+  build:
+    name: Build & Push Docker Image
+    needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      image_name: ${{ steps.set_image_name.outputs.IMAGE_NAME }}
+    steps:
+      - name: Checkout Repository Code
+        uses: actions/checkout@v4
 
-    build:
-        name: Build & Push Docker Image
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-        needs: validate
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout Repository Code
-              uses: actions/checkout@v4
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:latest,${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:${{ github.sha }}
 
-            - name: Log to Docker Hub
-              uses: docker/login-action@v3
-              with:
-                username: ${{ secrets.DOCKERHUB_USERNAME }}
-                password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Set Image Name Output
+        id: set_image_name
+        run: echo "IMAGE_NAME=${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:latest" >> $GITHUB_OUTPUT
+      
 
-            - name: Build and Push Docker Image
-              uses: docker/build-push-action@v4
-              with:
-                context: .
-                file: ./docker/Dockerfile
-                push: true
-                tags: ${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:latest,${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:${{ github.sha }}
+  run-backup:
+    name: Run S3 Backup
+    needs: build
+    # ----------------------------------------------------------
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with: 
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-    run-backup:
-        name: Run S3 Backup
-        needs: build
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-        runs-on: ubuntu-latest
+      - name: Create Logs Directory on Runner
+        run: mkdir -p ./logs
+
+      - name: Run Backup Script via Docker
+        run: |
+          docker run --rm \
+            -e AWS_ACCESS_KEY_ID \
+            -e AWS_SECRET_ACCESS_KEY \
+            -e AWS_SESSION_TOKEN \
+            -e AWS_REGION \
+            -e AWS_DEFAULT_REGION \
+            -e SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }} \
+            --mount type=bind,source="$(pwd)/logs",target=/app/logs \
+            ${{ needs.build.outputs.image_name }} \
     
-        steps:
-            - name: Configure AWS Credentials
-              uses: aws-actions/configure-aws-credentials@v4
-              with: 
-                aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-                aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-                aws-region: us-east-1
+            terraform-backup-test-mjay-sys
 
-      # We create this directory on the runner so we have a place to mount from.
-            - name: Create Logs Directory on Runner
-              run: mkdir -p ./logs
+      - name: Upload Logs as a Build Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-logs-${{ github.run_id }}
+          path: ./logs/
 
-      # This step runs our container. It is the CI/CD equivalent of our successful local test.
-            - name: Run Backup Script via Docker
-              run: |
-                docker run --rm \
-            
-                  -e AWS_ACCESS_KEY_ID \
-                  -e AWS_SECRET_ACCESS_KEY \
-                  -e AWS_SESSION_TOKEN \
-                  -e AWS_REGION \
-                  -e AWS_DEFAULT_REGION \
-                  -e SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }} \
-          
-                  --mount type=bind,source="$(pwd)/logs",target=/app/logs \
-            
-                  ${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:latest \
-            
-                  terraform-backup-test-mjay-sys
-
-      # This step will now find the logs created by the container and save them.
-            - name: Upload Logs as a Build Artifact
-              if: always() # Always run this, even if the backup fails, to capture the logs.
-              uses: actions/upload-artifact@v4
-              with:
-                name: backup-logs-${{ github.run_id }}
-                path: ./logs/
-
-
-    notify:
-            name: Notify on Completion
-            needs: [validate, build, run-backup]
-            if: always()
-            runs-on: ubuntu-latest
-            steps:
-                - name: Send Slack Notification on Success
-                  if: success()
-                  uses: rtCamp/action-slack-notify@v2
-                  env: 
-                    SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-                    SLACK_TITLE: "Backup Pipeline Succeeded :white_check_mark:"
-                    SLACK_MESSAGE: "The AWS S3 Backup pipeline has completed successfully."
-                    SLACK_COLOR: "good"
-                
-                - name: Send Slack Notification on Failure
-                  if: failure()
-                  uses: rtCamp/action-slack-notify@v2
-                  env:
-                    SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-                    SLACK_TITLE: "Backup Pipeline Failed :x:"
-                    SLACK_MESSAGE: "The AWS S3 Backup pipeline has failed. Please check the logs for details."
-                    SLACK_COLOR: "danger"
-                
+  notify:
+    name: Notify on Completion
+    needs: [validate, build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Slack Notification on Success
+        if: success()
+        uses: rtCamp/action-slack-notify@v2
+        env: 
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_TITLE: "Backup Pipeline: Build Succeeded"
+          SLACK_MESSAGE: "The AWS S3 Backup image has been validated and pushed to Docker Hub successfully."
+          SLACK_COLOR: "good"
+      
+      - name: Send Slack Notification on Failure
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_TITLE: "Backup Pipeline: Build Failed"
+          SLACK_MESSAGE: "The AWS S3 Backup pipeline failed during the validate or build stage. Please check the logs."
+          SLACK_COLOR: "danger"
