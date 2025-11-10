@@ -74,7 +74,12 @@ jobs:
                 aws-region: us-east-1
 
             - name: Run Backup Script via Docker
+
+             
               run: |
+                echo "--- DEBUG INFO FROM GITHUB RUNNER ---"
+                echo "GitHub Actions sees SNS_TOPIC_ARN as: '${{ secrets.SNS_TOPIC_ARN }}'"
+                echo "---------------------------------------"
                 docker run --rm \
                   -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
                   -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
