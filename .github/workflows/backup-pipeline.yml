@@ -1,13 +1,7 @@
-name: Backup CI/CD Pipeline
+name: DEBUGGING - Backup CI/CD Pipeline
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  schedule:
-    - cron: '0 2 * * *' # Daily at 2 AM UTC
-  workflow_dispatch: {} # Manual trigger
+  workflow_dispatch: {} # IMPORTANT: We are only using the manual trigger for this test.
 
 jobs:
   validate:
@@ -16,19 +10,10 @@ jobs:
     steps:
       - name: Checkout Repository Code
         uses: actions/checkout@v4
-
       - name: Lint Bash Script with ShellCheck
         uses: ludeeus/action-shellcheck@master
         with:
           scandir: './'
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: '1.5.6'
-
-      - name: Validate Terraform Configuration
-        run: terraform -chdir=./terraform init -backend=false && terraform -chdir=./terraform validate
 
   build:
     name: Build & Push Docker Image
@@ -39,13 +24,13 @@ jobs:
     steps:
       - name: Checkout Repository Code
         uses: actions/checkout@v4
-
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # This is the original build step, we will leave it as is.
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
@@ -54,69 +39,42 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:latest,${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:${{ github.sha }}
 
-      - name: Set Image Name Output
+      # --- DEBUG STEP 1: See what value we are trying to output ---
+      - name: 🕵️ DEBUG - Create and view the output value
         id: set_image_name
-        run: echo "IMAGE_NAME=${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:latest" >> $GITHUB_OUTPUT
-      
+        run: |
+          IMAGE_NAME_VALUE="${{ secrets.DOCKERHUB_USERNAME }}/aws-s3-backup:latest"
+          echo "DEBUG BUILD JOB: The image name I am about to set as output is: '${IMAGE_NAME_VALUE}'"
+          echo "IMAGE_NAME=${IMAGE_NAME_VALUE}" >> $GITHUB_OUTPUT
 
   run-backup:
     name: Run S3 Backup
     needs: build
-    # ----------------------------------------------------------
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
+      # --- DEBUG STEP 2: See what value we received from the build job ---
+      - name: 🕵️ DEBUG - Receive and view the output value
+        run: |
+          echo "DEBUG RUN JOB: The image name I received from the build job's output is: '${{ needs.build.outputs.image_name }}'"
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with: 
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-
-      - name: Create Logs Directory on Runner
-        run: mkdir -p ./logs
-
-      - name: Run Backup Script via Docker
+      
+      # --- DEBUG STEP 3: We will use a hardcoded value to prove the rest of the job works ---
+      - name: Run Backup Script with HARDCODED Image Name
         run: |
+          echo "Attempting to run Docker with a hardcoded image name as a final test..."
           docker run --rm \
             -e AWS_ACCESS_KEY_ID \
             -e AWS_SECRET_ACCESS_KEY \
             -e AWS_SESSION_TOKEN \
             -e AWS_REGION \
             -e AWS_DEFAULT_REGION \
-            -e SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }} \
-            --mount type=bind,source="$(pwd)/logs",target=/app/logs \
-            ${{ needs.build.outputs.image_name }} \
-    
+            -e SNS_TOPIC_ARN=${{ secrets.SNS_TOP_ARN }} \
+            # --- HARDCODED VALUE BELOW ---
+            jabu-meki/aws-s3-backup:latest \
             terraform-backup-test-mjay-sys
-
-      - name: Upload Logs as a Build Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: backup-logs-${{ github.run_id }}
-          path: ./logs/
-
-  notify:
-    name: Notify on Completion
-    needs: [validate, build]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send Slack Notification on Success
-        if: success()
-        uses: rtCamp/action-slack-notify@v2
-        env: 
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_TITLE: "Backup Pipeline: Build Succeeded"
-          SLACK_MESSAGE: "The AWS S3 Backup image has been validated and pushed to Docker Hub successfully."
-          SLACK_COLOR: "good"
-      
-      - name: Send Slack Notification on Failure
-        if: failure()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_TITLE: "Backup Pipeline: Build Failed"
-          SLACK_MESSAGE: "The AWS S3 Backup pipeline failed during the validate or build stage. Please check the logs."
-          SLACK_COLOR: "danger"
