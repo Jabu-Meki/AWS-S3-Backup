@@ -5,8 +5,11 @@ FROM python:3.9-slim
 WORKDIR /app
 
 RUN apt-get update && \
-    apt-get install -y aws-cli && \
-    pip install boto3 && \
+    apt-get install -y --no-install-recommends \
+        curl \
+        unzip \
+        && \
+    pip install --no-cache-dir boto3 awscli && \
     rm -rf /var/lib/apt/lists/*
 
 COPY cost_analyzer.py .

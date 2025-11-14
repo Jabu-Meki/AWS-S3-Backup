@@ -162,27 +162,26 @@ log_message "Created $NUM_FILES test files in ${BACKUP_DIR}"
 tar -czf "$BACKUP_FILE" "$BACKUP_DIR"
 log_message "Created compressed archive: ${BACKUP_FILE}"
 
-if ! aws s3 cp "$BACKUP_FILE" "$S3_BUCKET/backups/"; then
-    log_error "Failed to upload ${BACKUP_FILE} to ${S3_BUCKET}/backups/. Exiting."
+if ! aws s3 cp "$BACKUP_FILE" "s3://${S3_BUCKET}/backups/"; then
+    log_error "Failed to upload ${BACKUP_FILE} to s3://${S3_BUCKET}/backups/. Exiting."
     exit 1
 fi
-log_message "Uploaded ${BACKUP_FILE} to ${S3_BUCKET}/backups/"
-
+log_message "Uploaded ${BACKUP_FILE} to s3://${S3_BUCKET}/backups/"
 
 rm "$BACKUP_FILE"
 log_message "Removed local backup file: ${BACKUP_FILE}"
 
 
-BACKUP_FILE_COUNT=$(aws s3 ls "$S3_BUCKET/backups/" 2>/dev/null | wc -l)
+BACKUP_FILE_COUNT=$(aws s3 ls "s3://${S3_BUCKET}/backups/" 2>/dev/null | wc -l)
 
 if [ "$BACKUP_FILE_COUNT" -gt 5 ]; then
     echo "Backup file count exceeds limit. Deleting oldest backup file..."
     log_message "Backup file count (${BACKUP_FILE_COUNT}) exceeds limit. Starting rotation."
-    OLDEST_FILE=$(aws s3 ls "$S3_BUCKET/backups/" 2>/dev/null | head -n 1 | awk '{print $4}')
+    OLDEST_FILE=$(aws s3 ls "s3://${S3_BUCKET}/backups/" 2>/dev/null | head -n 1 | awk '{print $4}')
 
 
     if ! aws s3 rm "s3://${S3_BUCKET}/backups/${OLDEST_FILE}"; then
-        log_error "Failed to delete oldest backup file ${OLDEST_FILE} from ${S3_BUCKET}/backups/. Exiting."
+        log_error "Failed to delete oldest backup file ${OLDEST_FILE} from s3://${S3_BUCKET}/backups/. Exiting."
         exit 1
     fi
 
