@@ -58,7 +58,33 @@ jobs:
           # The image name MUST be prefixed with your actual Docker Hub username.
           tags: jabulani053/aws-s3-backup:latest,jabulani053/aws-s3-backup:${{ github.sha }}
 
-  # --- JOB 3: RUN BACKUP ---
+   # --- JOB 3: BUILD COST ANALYZER IMAGE ---
+
+  build-cost-analyzer:
+    name: Build & Push Cost Analyzer Docker Image
+    needs: validate # This job will ONLY run if the 'validate' job completes successfully.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }} # Should be 'jabulani053'
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Cost Analyzer Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/cost.Dockerfile
+          push: true
+          # The image name MUST be prefixed with your actual Docker Hub username.
+          tags: jabulani053/aws-s3-cost-analyzer:latest,jabulani053/aws-s3-cost-analyzer:${{ github.sha }}
+
+  
+  # --- JOB 4: RUN BACKUP ---
   # This job runs the actual backup. It only runs for scheduled or manual triggers.
   run-backup:
     name: Run S3 Backup
@@ -103,6 +129,7 @@ jobs:
 
   analyze-costs:
     name: Analyze S3 Storage Costs
+    needs: build-cost-analyzer
     runs-on: ubuntu-latest
 
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
