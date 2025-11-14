@@ -100,3 +100,57 @@ jobs:
         with:
           name: backup-logs-${{ github.run_id }}
           path: ./logs/
+
+  analyze-costs:
+    name: Analyze S3 Storage Costs
+    runs-on: ubuntu-latest
+
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
+          aws-region: us-east-1
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }} # Should be 'jabulani053'
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Cost Analyzer Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/cost.Dockerfile
+          push: true
+          tags: jabulani053/s3-cost-analyzer:latest
+
+      - name: Create Reports Directory on Runner
+        run: mkdir -p ./reports
+
+      - name: Run Cost Analysis and Generate Reports
+        run: |
+          docker run --rm \
+            -e AWS_ACCESS_KEY_ID \
+            -e AWS_SECRET_ACCESS_KEY \
+            -e AWS_SESSION_TOKEN \
+            -e AWS_REGION \
+            -e AWS_DEFAULT_REGION \
+            --mount type=bind,source="$(pwd)/reports",target=/app/reports \
+            jabulani053/aws-s3-cost-analyzer:latest \
+            terraform-backup-test-mjay-sys \
+            --save-json /app/reports/cost_analysis_report.json \
+            --save-csv /app/reports/cost_analysis_report.csv
+
+      - name: Upload Cost Reports as an Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: s3-cost-analysis-reports
+          path: ./reports/

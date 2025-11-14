@@ -143,7 +143,7 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-S3_BUCKET="s3://$1"
+S3_BUCKET="$1"
 log_message "Backing up to bucket: ${S3_BUCKET}"
     
 
