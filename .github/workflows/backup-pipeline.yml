@@ -134,6 +134,10 @@ jobs:
 
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
 
+    permissions:
+      contents: write
+
+      
     steps:
       - name: Checkout Repository Code
         uses: actions/checkout@v4
@@ -176,7 +180,18 @@ jobs:
             --save-json /app/reports/cost_analysis_report.json \
             --save-csv /app/reports/cost_analysis_report.csv
 
+      - name: Commit and Push Updated CSV Report
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "chore: Update cost analysis report"
+          file_pattern: reports/cost_analysis_report.csv
+          commit_user_name: github-actions
+          commit_user_email: github-actions@github.com
+          commit_author: GitHub Actions
+
       - name: Upload Cost Reports as an Artifact
+
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: s3-cost-analysis-reports
