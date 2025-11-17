@@ -1,0 +1,2 @@
+bucket_name,timestamp_utc,total_objects,total_size_bytes,total_size_gb,cost_standard,cost_infrequent_access,cost_glacier,potential_savings_usd,potential_savings_percent
+terraform-backup-test-mjay-sys,2025-11-17T00:35:59.161807+00:00,6,2249,0.0,0.0,0.0,0.0,0.0,82.61
