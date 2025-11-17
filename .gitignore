@@ -35,3 +35,5 @@ terraform.rc
 
 **/*.txt
 **/*.log
+report.json
+cost_analysis_report.csv

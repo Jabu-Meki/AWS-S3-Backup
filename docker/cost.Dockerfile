@@ -9,7 +9,7 @@ RUN apt-get update && \
         curl \
         unzip \
         && \
-    pip install --no-cache-dir boto3 awscli && \
+    pip install --no-cache-dir boto3 awscli pandas numpy && \
     rm -rf /var/lib/apt/lists/*
 
 COPY cost_analyzer.py .
