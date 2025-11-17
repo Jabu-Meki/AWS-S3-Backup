@@ -6,6 +6,8 @@ import sys
 import os
 import json
 import csv
+import pandas as pd
+import numpy as np
 from datetime import datetime, timezone
 from botocore.exceptions import ClientError
 
@@ -167,6 +169,86 @@ def save_to_csv(report_data, filename):
     except IOError as e:
         print(f"\n[ERROR] Failed to write to CSV file {filename}: {e}")
 
+def send_anomaly_alert(current_size_gb, average_size_gb, threshold, bucket_name):
+    """
+    Send an alert when an anomaly is detected.
+    """
+
+    sns_client = boto3.client('sns')
+    sns_topic_arn = os.environ.get('SNS_TOPIC_ARN')
+
+    if not sns_topic_arn:
+        print("[WARNING] SNS_TOPIC_ARN environment variable not set. Cannot send alert.")
+        return
+    subject = f"Anomaly Detected: Unusually Large Backup in {bucket_name}"
+    message = f"""
+    SECURITY & COST ALERT: A recent backup has been flagged as anomalous.
+
+    The size of the latest backup is significantly larger than the historical average,
+    exceeding the configured threshold. This may indicate a misconfiguration,
+    runaway log files, or a potential security issue.
+
+    Analysis:
+    - Current Backup Size: {current_size_gb:.2f} GB
+    - Historical Average Size: {average_size_gb:.2f} GB
+    - Anomaly Threshold: {threshold:.2f} GB
+
+    Action Required: Please investigate the source of the backup to determine the
+    cause of this unusual increase in size.
+    """
+
+    try:
+        sns_client.publish(
+            TopicArn=sns_topic_arn,
+            Subject=subject,
+            Message=message
+        )
+        print(f"[SUCCESS] Anomaly alert sent successfully.")
+    except ClientError as e:
+        print(f"\n[ERROR] Failed to send anomaly alert via SNS: {e}")
+
+def analyze_anomalies(csv_filename, current_report, bucket_name):
+    """
+    Analyze past reports in the CSV file to detect anomalies in cost changes.
+    An anomaly is defined as a change greater than 50% compared to the average of past data.
+    """
+
+    print("\n-- Running Anomaly Detection --")
+    try:
+        # This script will use pandas to read the CSV and analyze past costs.
+        df = pd.read_csv(csv_filename)
+
+        if len(df) < 3:
+            print("[INFO] Not enough historical data to perform anomaly analysis, need at least 3 data points")
+            return
+        
+        # select all rows except the very last one
+        historical_sizes = df['total_size_gb'].iloc[:-1]
+
+        # Statistical calculations
+        mean_size = historical_sizes.mean()
+        std_dev = historical_sizes.std()
+
+        # Define thresholds for anomaly detection
+        anomaly_threshold = mean_size + (2 * std_dev)
+
+        current_size = current_report['total_size_gb']
+
+        print(f"Historical Average Size: {mean_size:.2f} GB")
+        print(f"Standard Deviation: {std_dev:.2f} GB")
+        print(f"Anomaly Threshold (>): {anomaly_threshold:.2f} GB")
+        print(f"Current Backup Size: {current_size:.2f} GB")
+        if current_size > anomaly_threshold:
+            print(f"[ALERT] Anomaly detected! Current size {current_size:.2f} GB exceeds threshold.")
+            send_anomaly_alert(current_size, mean_size, anomaly_threshold, bucket_name)
+        else:
+            print("[INFO] No anomalies detected in current backup size.")
+
+    except FileNotFoundError:
+        print(f"[INFO] History file not found. Skipping analysis on first run.")
+    except Exception as e:
+        print(f"[ERROR] An error occurred during anomaly detection: {e}")
+
 
 def main():
     # command-line argument parser
@@ -190,6 +272,7 @@ def main():
 
     if args.save_csv:
         save_to_csv(report_data, args.save_csv)
+        analyze_anomalies(args.save_csv, report_data, args.bucket)
 
     print("\n--- Script Finished ---")
 
