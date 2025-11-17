@@ -91,14 +91,18 @@ jobs:
     needs: build
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     
     steps:
       # This step CREATES the AWS environment variables in the runner's shell.
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with: 
-          role-to-assume: arn:aws:iam::766789219705:role/GitHubActionsBackupRole
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
+          role-session-name: GitHubActionsBackup
 
       # We create this directory on the runner so we have a place to mount from.
       - name: Create Logs Directory on Runner
