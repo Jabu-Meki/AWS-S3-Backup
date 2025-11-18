@@ -1,347 +1,397 @@
 # AWS S3 Automated Backup System
 
-![Shell](https://img.shields.io/badge/Shell-100%25-green)
-![AWS](https://img.shields.io/badge/AWS-S3-orange)
-![Docker](https://img.shields.io/badge/Docker-Enabled-blue)
-![Terraform](https://img.shields.io/badge/IaC-Terraform-purple)
-![Status](https://img.shields.io/badge/Status-Production-success)
+![Build & Test](https://github.com/Jabu-Meki/AWS-S3-Backup/actions/workflows/backup_pipeline.yml/badge.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![AWS](https://img.shields.io/badge/AWS-S3%20%7C%20IAM%20%7C%20SNS-orange)
+![Tech Stack](https://img.shields.io/badge/Stack-Bash%20%7C%20Python%20%7C%20Docker%20%7C%20Terraform-blue)
 
-## 📋 Overview
+## Overview
 
-A production-ready, containerized backup automation system that leverages AWS S3 for reliable cloud storage. Built with bash scripting, Infrastructure as Code (Terraform), and Docker containerization, this system automates the entire backup lifecycle while optimizing costs through intelligent storage tiering.
+A production-grade automated backup solution that demonstrates modern DevOps practices and cloud-native architecture. The system manages the complete backup lifecycle—from file compression and S3 upload to cost optimization, anomaly detection, and automated alerting.
 
-**Key Problem Solved:** Manual backups are unreliable, time-consuming, and prone to human error. This system ensures automated, consistent backups with zero manual intervention, automatic cleanup, and cost optimization through AWS S3 lifecycle policies.
+Built with Infrastructure as Code principles, the entire AWS infrastructure is provisioned via Terraform, while Docker ensures consistent execution across environments. A secure CI/CD pipeline implements keyless authentication and automated deployments.
 
-## ✨ Features
+**Key Achievement:** Integrated statistical anomaly detection identifies unusual backup patterns (potential data corruption or security incidents) and automatically triggers alerts when backups deviate beyond 2 standard deviations from historical norms.
 
-### Core Functionality
-- 🔄 **Automated Backup Rotation** - Maintains only the last 5 backups, automatically deleting older ones
-- 📦 **Smart Compression** - Uses tar.gz to minimize upload size and reduce costs
-- 📝 **Comprehensive Logging** - Tracks every operation with timestamps for full audit trails
-- ⚠️ **Robust Error Handling** - Pre-flight checks and graceful failure handling
-- 🪣 **Flexible Bucket Management** - Create new buckets or use existing ones
-- 🔒 **AWS CLI Integration** - Validates credentials before attempting operations
+---
 
-### Infrastructure & Deployment
-- 🏗️ **Infrastructure as Code** - Complete Terraform configuration for reproducible infrastructure
-- 💰 **Cost Optimization** - Automated lifecycle policies (Standard → IA → Glacier → Delete)
-- 🐳 **Docker Containerized** - Runs consistently across any environment
-- 🔄 **CI/CD Ready** - GitHub Actions pipeline for automated builds and deployments
-- 📊 **Production Logging** - Separate error logs for easy troubleshooting
+## Core Features
 
-## 🛠️ Technologies Used
+### Backup Automation
+- **Intelligent File Management**: Automated compression, upload, and retention management
+- **Smart Rotation**: Maintains the 5 most recent backups with automatic cleanup
+- **Error Recovery**: Comprehensive pre-flight checks and graceful failure handling
+- **Detailed Logging**: Timestamped operation logs with dedicated error tracking
 
-- **Bash** - Shell scripting for automation logic
-- **AWS CLI** - Interface with AWS S3 services
-- **AWS S3** - Cloud object storage with lifecycle policies
-- **Terraform** - Infrastructure as Code for AWS resource provisioning
-- **Docker** - Containerization for portability and consistency
-- **GitHub Actions** - CI/CD pipeline automation
-- **tar/gzip** - File compression
+### Infrastructure & Security
+- **Infrastructure as Code**: Complete AWS resource provisioning via Terraform (S3, IAM, SNS)
+- **IAM Role-Based Access**: Dedicated IAM roles for backup operations and cost analysis with least-privilege policies
+- **Keyless Authentication**: OIDC-based IAM roles eliminate long-lived credentials in CI/CD
+- **Container Isolation**: Separate Docker containers for backup and cost analysis ensure reproducible environments
+- **Secure Credential Management**: AWS credentials mounted read-only in containers
 
-## 📁 Project Structure
-```
-AWS-S3-Backup/
-├── backup.sh                 # Main backup automation script
-├── docker/
-│   └── Dockerfile           # Container definition
-├── docker-compose.yml        # Easy Docker orchestration
-├── terraform/
-│   ├── main.tf              # Infrastructure definitions
-│   ├── variables.tf         # Configurable variables
-│   └── README.md            # Terraform documentation
-├── .github/
-│   └── workflows/
-│       └── backup-pipeline.yml  # CI/CD automation
-├── backups/                  # Local backup staging (gitignored)
-├── logs/                     # Application logs (gitignored)
-│   ├── backup.log
-│   └── backup-errors.log
-├── .gitignore
-└── README.md                 # This file
-```
+### Cost Optimization
+- **Automated Cost Analysis**: Python-based analyzer calculates storage costs across tiers
+- **Lifecycle Policies**: Automatic transition to cheaper storage classes (Standard → IA → Glacier)
+- **Historical Tracking**: CSV-based time-series data for trend analysis
+- **Savings Reporting**: Detailed breakdowns of cost optimizations
 
-## 🚀 Prerequisites
+### Monitoring & Intelligence
+- **Real-time Notifications**: SNS alerts for backup success/failure with detailed metrics
+- **Anomaly Detection**: Statistical analysis (mean, standard deviation) identifies unusual patterns
+- **Automated Alerting**: High-priority notifications when backups exceed normal variance
+- **Performance Metrics**: Tracks backup duration, file size, and success rates
 
-- ✅ AWS Account with S3 access
-- ✅ AWS CLI installed and configured ([Installation Guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html))
-- ✅ Docker installed ([Get Docker](https://docs.docker.com/get-docker/))
-- ✅ Terraform installed (v1.0+) - Optional for infrastructure management
-- ✅ Appropriate IAM permissions for S3 operations
+### CI/CD Pipeline
+- **Automated Testing**: Shellcheck linting and validation on every commit
+- **Continuous Deployment**: Automated Docker image builds and registry pushes
+- **Scheduled Execution**: Automated daily backups and weekly cost analysis
+- **Version Control**: Automated commits of analysis reports back to repository
 
-## ⚙️ Installation
+---
 
-### Option 1: Using Docker (Recommended)
+## Architecture
+
+### System Flow
+
+1. **Code Push** → GitHub triggers CI/CD pipeline
+2. **Validation** → Automated linting and security checks
+3. **Build** → Docker images built and pushed to registry
+4. **Authentication** → OIDC provider issues temporary AWS credentials
+5. **Execution** → Containerized jobs run backup and cost analysis
+6. **Storage** → Compressed archives uploaded to S3
+7. **Analysis** → Cost calculations and anomaly detection
+8. **Notification** → SNS alerts sent based on results
+9. **Commit** → Updated metrics committed to repository
+
+### AWS Resources (Terraform-managed)
+
+- **S3 Bucket**: Backup storage with versioning and lifecycle policies
+- **IAM Roles**: 
+  - Backup execution role with S3 write permissions
+  - Cost analyzer role with S3 read permissions
+  - OIDC provider trust relationship for GitHub Actions
+- **SNS Topic**: Email/SMS notification delivery
+- **OIDC Provider**: GitHub Actions authentication without long-lived keys
+
+---
+
+## Technology Stack
+
+| Component | Technology |
+|-----------|-----------|
+| **Cloud Platform** | AWS (S3, IAM, SNS) |
+| **Infrastructure** | Terraform 1.0+ |
+| **Containerization** | Docker, Docker Compose |
+| **CI/CD** | GitHub Actions |
+| **Scripting** | Bash (backup logic) |
+| **Analytics** | Python 3 (boto3, pandas, numpy) |
+| **Version Control** | Git, GitHub |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- AWS CLI configured with appropriate credentials
+- Terraform 1.0 or later
+- Docker and Docker Compose
+- Python 3.8+ with pip (for local development)
+- Git
+
+### Installation
+
+#### 1. Clone and Configure
 ```bash
-# 1. Clone the repository
 git clone https://github.com/Jabu-Meki/AWS-S3-Backup.git
 cd AWS-S3-Backup
-
-# 2. Build the Docker image
-docker-compose build
-
-# 3. Run backup
-docker-compose run backup
 ```
 
-### Option 2: Direct Script Execution
+#### 2. Provision Infrastructure
 ```bash
-# 1. Clone the repository
-git clone https://github.com/Jabu-Meki/AWS-S3-Backup.git
-cd AWS-S3-Backup
-
-# 2. Make script executable
-chmod +x backup.sh
-
-# 3. Run with bucket name
-./backup.sh your-bucket-name
-```
-
-### Option 3: Provision Infrastructure with Terraform
-```bash
-# 1. Navigate to terraform directory
 cd terraform
 
-# 2. Initialize Terraform
+# Update variables for your environment
+# Edit terraform/variables.tf with your email and bucket name
+
 terraform init
-
-# 3. Review planned changes
 terraform plan
-
-# 4. Apply infrastructure
 terraform apply
 ```
 
-## 💻 Usage
+Note the output values:
+- `bucket_name` - S3 bucket for backups
+- `sns_topic_arn` - ARN for notifications
+- `backup_role_arn` - IAM role ARN for backup operations
+- `cost_analyzer_role_arn` - IAM role ARN for cost analysis
 
-### Docker (Recommended)
+#### 3. Configure Environment
 ```bash
-# Run backup with docker-compose
-docker-compose run backup
+# Export required variables
+export SNS_TOPIC_ARN="<from_terraform_output>"
+export BUCKET_NAME="<from_terraform_output>"
+```
 
-# Or with docker run
+### Usage
+
+#### Run Backup
+
+**Option 1: Docker Compose (Recommended)**
+```bash
+docker-compose run backup
+```
+
+**Option 2: Docker Run**
+```bash
+docker build -f docker/Dockerfile -t aws-s3-backup:latest .
+
 docker run --rm \
   -v ~/.aws:/root/.aws:ro \
   -v "$(pwd)/backups":/data/source_files \
   -v "$(pwd)/logs":/app/logs \
-  aws-s3-backup:v1.0 \
-  your-bucket-name
+  -e SNS_TOPIC_ARN="${SNS_TOPIC_ARN}" \
+  aws-s3-backup:latest <bucket-name>
 ```
 
-### Direct Script
+**Option 3: Direct Script Execution**
 ```bash
-./backup.sh your-bucket-name
+./backup.sh <bucket-name>
 ```
 
-### Example Output
-```
-[2025-11-07 00:47:25] Running pre-flight checks...
-[2025-11-07 00:47:27] Pre-flight checks completed successfully.
-[2025-11-07 00:47:27] ===============================================
-[2025-11-07 00:47:27] Backup script started.
-[2025-11-07 00:47:27] ===============================================
-[2025-11-07 00:47:27] Backing up to bucket: s3://your-bucket-name
-Creating test files in back up directory...
-[2025-11-07 00:47:27] Creating 10 test files in /data/source_files
-[2025-11-07 00:47:27] Created 10 test files in /data/source_files
-[2025-11-07 00:47:27] Created compressed archive: backup-2025-11-07_00-47-25.tar.gz
-[2025-11-07 00:47:30] Uploaded backup-2025-11-07_00-47-25.tar.gz to s3://your-bucket-name/backups/
-[2025-11-07 00:47:30] Removed local backup file: backup-2025-11-07_00-47-25.tar.gz
-[2025-11-07 00:47:33] Backup file count (2) within limit. No rotation needed.
-[2025-11-07 00:47:33] ======================================================
-[2025-11-07 00:47:33] Backup script completed.
-[2025-11-07 00:47:33] ======================================================
-```
+#### Run Cost Analysis
 
-## 📊 How It Works
-
-### Backup Workflow
-
-1. **Pre-flight Checks**
-   - Validates backup directory exists (creates if missing)
-   - Verifies AWS CLI installation
-   - Confirms AWS credentials are configured
-
-2. **Bucket Selection**
-   - Uses bucket name provided as argument
-   - Non-interactive mode for automation/containers
-
-3. **File Generation**
-   - Creates test files (configurable for production use)
-   - Timestamps each file for tracking
-
-4. **Compression**
-   - Archives files using tar.gz with timestamp
-   - Format: `backup-YYYY-MM-DD_HH-MM-SS.tar.gz`
-
-5. **Upload to S3**
-   - Securely transfers backup to designated S3 bucket
-   - Validates upload success
-
-6. **Smart Rotation**
-   - Counts existing backups in S3
-   - If more than 5 backups exist, deletes the oldest
-   - Maintains exactly 5 most recent backups
-
-7. **Cleanup & Logging**
-   - Removes local compressed archive
-   - Logs all operations with timestamps
-   - Separate error log for troubleshooting
-
-### Infrastructure Automation (Terraform)
-
-The Terraform configuration provisions:
-- S3 bucket with versioning enabled
-- Lifecycle policies for cost optimization:
-  - **Day 0-29**: Standard storage
-  - **Day 30-89**: Infrequent Access (IA) - 45% cost savings
-  - **Day 90-364**: Glacier storage - 83% cost savings
-  - **Day 365+**: Automatic deletion
-
-## 🔍 Logging
-
-### Log Locations
-
-**In Container:**
-- Main log: `/app/logs/backup.log`
-- Error log: `/app/logs/backup-errors.log`
-
-**On Host (mounted):**
-- Main log: `./logs/backup.log`
-- Error log: `./logs/backup-errors.log`
-
-### What's Logged
-
-- All operations with timestamps
-- Pre-flight check results
-- Bucket selection
-- File operations (creation, compression, upload)
-- Upload status and file sizes
-- Rotation decisions (kept/deleted backups)
-- Errors and failures with detailed context
-
-### Viewing Logs
+**Option 1: Docker (Recommended)**
 ```bash
-# View main log
-cat logs/backup.log
+docker build -f docker/cost.Dockerfile -t aws-cost-analyzer:latest .
 
-# View only errors
-cat logs/backup-errors.log
-
-# Search for specific date
-grep "2025-11-07" logs/backup.log
-
-# Count total successful backups
-grep "Backup script completed" logs/backup.log | wc -l
-
-# Watch logs in real-time
-tail -f logs/backup.log
+docker run --rm \
+  -v ~/.aws:/root/.aws:ro \
+  -v "$(pwd)/reports":/app/reports \
+  aws-cost-analyzer:latest <bucket-name> --save-csv /app/reports/cost_report.csv
 ```
 
-## 💰 Cost Optimization
+**Option 2: Docker Compose**
+```bash
+docker-compose run cost-analyzer
+```
 
-### Storage Class Transitions
+**Option 3: Local Python Environment**
+```bash
+# Set up virtual environment
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 
-| Days | Storage Class | Cost/GB/Month | Savings vs Standard |
-|------|--------------|---------------|---------------------|
-| 0-29 | Standard | $0.023 | Baseline |
-| 30-89 | Infrequent Access | $0.0125 | 45% |
-| 90-364 | Glacier | $0.004 | 83% |
-| 365+ | Deleted | $0 | 100% |
+# Run analyzer
+python3 python-tools/cost_analyzer.py <bucket-name> --save-csv reports/cost_report.csv
+```
 
-### Example Cost Calculation
+---
 
-**Scenario:** 100GB of backups per month
+## CI/CD Setup
 
-- **Without lifecycle policies:** $2.30/month
-- **With lifecycle policies:** ~$0.80/month
-- **Monthly savings:** $1.50 (65% reduction)
-- **Annual savings:** $18.00
+### GitHub Actions Configuration
 
-*Actual savings depend on backup frequency and retention needs*
+The pipeline (`.github/workflows/backup_pipeline.yml`) automatically authenticates to AWS using IAM roles configured in Terraform.
 
-## 🚧 Project Status & Roadmap
+#### Required Secrets
 
-### ✅ Completed (MVP)
+- `DOCKERHUB_USERNAME` - Docker Hub username
+- `DOCKERHUB_TOKEN` - Docker Hub access token
 
-- [x] Phase 1: Basic backup functionality
-- [x] Phase 2: Intelligent backup rotation
-- [x] Phase 4: Production-grade logging and error handling
-- [x] Phase 5: Infrastructure as Code with Terraform
-- [x] Phase 6: Docker containerization
-- [x] Phase 7: CI/CD pipeline with GitHub Actions
+**Note**: AWS credentials are NOT stored in GitHub Secrets. Authentication uses OIDC with temporary credentials issued by the IAM role defined in `terraform/iam.tf`.
 
-### 🔮 Planned Enhancements
+#### Optional Secrets
 
-- [ ] **Phase 8: Monitoring & Notifications**
-  - AWS SNS email/SMS alerts
-  - Slack/Discord webhook integration
-  - CloudWatch metrics and dashboards
-  - Real-time status notifications
+- `SLACK_WEBHOOK_URL` - Slack notification integration
 
-- [ ] **Phase 9: Cost Analytics Dashboard**
-  - Real-time cost tracking
-  - Storage class breakdown
-  - Month-over-month comparisons
-  - Projected costs and optimization recommendations
+#### IAM Role Configuration
 
-- [ ] **Phase 10: Intelligent Backup Optimization**
-  - Differential/incremental backups
-  - Data deduplication
-  - Compression optimization
-  - Smart retention policies based on usage patterns
+The Terraform configuration creates:
+- **Backup Role**: Permissions for S3 PutObject, GetObject, ListBucket operations
+- **Cost Analyzer Role**: Permissions for S3 ListBucket, GetBucketSize operations
+- **OIDC Trust Policy**: Allows GitHub Actions to assume these roles
 
-- [ ] **Phase 11: ML-Powered Anomaly Detection** 🤖
-  - Unusual backup size detection
-  - Upload time anomaly identification
-  - Storage need predictions
-  - Automated alerting on suspicious patterns
-  - Pattern-based retention adjustments
+Update `terraform/iam.tf` to match your repository:
+```hcl
+# Example trust policy
+condition {
+  test     = "StringEquals"
+  variable = "token.actions.githubusercontent.com:sub"
+  values   = ["repo:your-username/AWS-S3-Backup:*"]
+}
+```
 
-## 🔒 Security Best Practices
+### Pipeline Triggers
 
-- AWS credentials mounted read-only in containers (`:ro`)
-- State files excluded from version control
-- IAM roles with least-privilege access
-- Encrypted data in transit (AWS CLI default)
-- No hardcoded credentials in code
+- **Push/PR**: Validation and build on every commit
+- **Schedule**: Daily backups (2 AM UTC), weekly cost analysis (Sundays 3 AM UTC)
+- **Manual**: On-demand execution via GitHub UI
 
-## 🤝 Contributing
+---
 
-Contributions are welcome! Please:
+## Cost Optimization
+
+### Storage Lifecycle
+
+| Age | Storage Class | Cost/GB/Month | Use Case |
+|-----|--------------|---------------|----------|
+| 0-29 days | Standard | $0.023 | Recent backups (frequent access) |
+| 30-89 days | Standard-IA | $0.0125 | Older backups (infrequent access) |
+| 90-364 days | Glacier | $0.004 | Archive (rare access) |
+| 365+ days | Deleted | $0 | Automatic cleanup |
+
+### Example Savings
+
+**Scenario**: 100GB monthly backups
+
+- Without lifecycle policies: **$2.30/month**
+- With lifecycle policies: **~$0.85/month**
+- **Annual savings**: $17.40 (63% reduction)
+
+---
+
+## Monitoring & Alerting
+
+### Notification Types
+
+**Success Notifications** include:
+- Backup file name and size
+- Upload duration
+- Total backup count
+- Timestamp
+
+**Failure Notifications** include:
+- Error description
+- Failed operation
+- Log file location
+- Timestamp
+
+**Anomaly Alerts** include:
+- Current vs. expected backup size
+- Standard deviation calculation
+- Historical comparison
+- Recommended actions
+
+### Log Files
+
+- `logs/backup.log` - All operations with timestamps
+- `logs/backup-errors.log` - Error-specific entries
+- `reports/cost_report.csv` - Historical cost data
+
+---
+
+## Anomaly Detection
+
+The system uses statistical analysis to identify unusual backup patterns:
+
+1. **Data Collection**: Each backup's size and duration are logged
+2. **Baseline Calculation**: Mean and standard deviation computed from historical data
+3. **Threshold Detection**: New backups compared against baseline (±2σ)
+4. **Automated Alerting**: SNS notification sent when thresholds exceeded
+
+**Use Cases**:
+- Detect data corruption or incomplete backups
+- Identify configuration changes
+- Flag potential security incidents (ransomware, unauthorized access)
+
+---
+
+## Project Structure
+```
+AWS-S3-Backup/
+├── .github/
+│   └── workflows/
+│       └── backup_pipeline.yml    # CI/CD configuration
+├── docker/
+│   ├── Dockerfile                 # Backup container definition
+│   └── cost.Dockerfile            # Cost analyzer container definition
+├── terraform/
+│   ├── main.tf                    # Infrastructure definitions
+│   ├── variables.tf               # Configuration variables
+│   ├── iam.tf                     # IAM roles and policies
+│   └── notifications.tf           # SNS configuration
+├── python-tools/
+│   └── cost_analyzer.py           # Cost analysis script
+├── reports/                       # Generated cost reports
+├── logs/                          # Application logs
+├── backup.sh                      # Main backup script
+├── docker-compose.yml             # Container orchestration
+├── requirements.txt               # Python dependencies
+└── README.md                      # This file
+```
+
+---
+
+## Development Roadmap
+
+### Completed Features
+- [x] Core backup automation with rotation
+- [x] Infrastructure as Code with Terraform
+- [x] Docker containerization
+- [x] CI/CD pipeline with GitHub Actions
+- [x] SNS notifications
+- [x] Cost analysis and tracking
+- [x] Statistical anomaly detection
+- [x] Keyless OIDC authentication
+
+### Future Enhancements
+- [ ] Differential/incremental backups
+- [ ] Multi-region replication
+- [ ] Web-based dashboard
+- [ ] Enhanced ML models (time-series forecasting)
+- [ ] Backup encryption at rest
+- [ ] CloudWatch metrics integration
+
+---
+
+## Security Best Practices
+
+- **No Hardcoded Credentials**: All secrets managed via environment variables or AWS IAM
+- **Least Privilege IAM**: Roles scoped to minimum required permissions
+- **Read-Only Mounts**: AWS credentials mounted as read-only in containers
+- **Encrypted Transit**: All AWS API calls use TLS
+- **State File Security**: Terraform state files excluded from version control
+- **Dependency Scanning**: Automated vulnerability checks in CI/CD
+
+---
+
+## Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/improvement`)
+3. Make your changes with clear commit messages
+4. Add tests if applicable
+5. Update documentation
+6. Submit a pull request
 
-## 📝 License
+---
 
-MIT License - feel free to use and modify for your needs
+## License
 
-## 👤 Author
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## Author
 
 **Jabu Meki**
+
 - GitHub: [@Jabu-Meki](https://github.com/Jabu-Meki)
 - LinkedIn: www.linkedin.com/in/jabulani-meki-cloudguy
 
-## 🙏 Acknowledgments
+---
 
-- AWS Documentation for S3 best practices and lifecycle policies
+## Acknowledgments
+
+- AWS Documentation for S3 and IAM best practices
 - HashiCorp for Terraform
 - Docker community for containerization patterns
-- The open-source community for bash scripting resources
+- GitHub Actions team for CI/CD capabilities
 
 ---
 
-## 📚 Additional Resources
-
-- [AWS S3 Documentation](https://docs.aws.amazon.com/s3/)
-- [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
-- [Docker Documentation](https://docs.docker.com/)
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-
----
-
-**⭐ If you find this project helpful, please consider giving it a star!**
-
-**💬 Questions? Open an issue or reach out on LinkedIn!**
+**Questions or suggestions?** Open an issue or reach out via LinkedIn.
