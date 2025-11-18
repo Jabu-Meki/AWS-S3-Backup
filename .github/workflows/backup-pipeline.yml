@@ -7,8 +7,8 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  schedule:
-    - cron: '0 2 * * *' # Runs every day at 2 AM UTC
+ # schedule:
+ #  - cron: '0 2 * * *' # Runs every day at 2 AM UTC
   workflow_dispatch: {} # Allows you to manually trigger the workflow from the GitHub Actions tab.
 
 # A workflow is made up of one or more jobs.
